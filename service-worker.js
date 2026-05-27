@@ -1,4 +1,4 @@
-const CACHE_NAME = 'controle-celulares-v8-caixa-correto';
+const CACHE_NAME = 'controle-celulares-v8-1-desconto-despesa';
 const FILES = ['./', './index.html', './styles.css', './app.js', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', (event) => {
