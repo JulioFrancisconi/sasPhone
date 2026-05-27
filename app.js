@@ -1,4 +1,4 @@
-const APP_VERSION = '1.8.0';
+const APP_VERSION = '1.8.1';
 const STORAGE_KEY = 'controle_celulares_v1';
 const CLIENT_ID_KEY = 'controle_celulares_client_id';
 const CLOUD_TABLE = 'jpstore_app_state';
