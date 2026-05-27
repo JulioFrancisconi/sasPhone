@@ -1217,6 +1217,7 @@ function emptySaleDraft() {
     customerId: '',
     notes: '',
     warrantyDays: 90,
+    discount: 0,
     items: [{ productId: '', qty: 1, price: 0 }],
     payments: [{ method: 'pix', amount: 0 }],
     trades: []
@@ -1264,6 +1265,13 @@ function renderSales() {
       <button class="secondary" id="addPaymentItem">+ Adicionar pagamento</button>
 
       <div class="divider"></div>
+      <div class="row">
+        <label>Desconto da venda
+          <input id="saleDiscount" inputmode="decimal" value="${saleDraft.discount || ''}" placeholder="0,00" />
+        </label>
+      </div>
+
+      <div class="divider"></div>
       <label>Observação da venda
         <textarea id="saleNotes" placeholder="Ex.: cliente ficou de pagar parcela restante amanhã">${sanitize(saleDraft.notes)}</textarea>
       </label>
@@ -1292,6 +1300,7 @@ function renderSales() {
   $('saleDate').addEventListener('change', (e) => { saleDraft.date = e.target.value; renderSaleTotals(); });
   $('saleCustomer').addEventListener('change', (e) => { saleDraft.customerId = e.target.value; });
   $('saleWarrantyDays').addEventListener('input', (e) => { saleDraft.warrantyDays = Number(e.target.value || 0); });
+  $('saleDiscount').addEventListener('input', (e) => { saleDraft.discount = numberValue(e.target.value); renderSaleTotals(); });
   $('saleNotes').addEventListener('input', (e) => { saleDraft.notes = e.target.value; });
   $('addSaleItem').addEventListener('click', () => { saleDraft.items.push({ productId: '', qty: 1, price: 0 }); renderSales(); });
   $('addTradeItem').addEventListener('click', () => { saleDraft.trades.push({ name: '', imei: '', credit: 0, price: 0, condition: 'usado', notes: '' }); renderSales(); });
@@ -1382,16 +1391,31 @@ function saleTotals() {
     const price = Number(item.price || product?.price || 0);
     return sum + Number(item.qty || 0) * price;
   }, 0);
+
+  const discount = Math.max(0, Number(saleDraft.discount || 0));
+  const finalTotal = Math.max(0, itemsTotal - discount);
   const tradeCredit = saleDraft.trades.reduce((sum, t) => sum + Number(t.credit || 0), 0);
   const paid = saleDraft.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
   const paidCash = saleDraft.payments.filter((p) => p.method !== 'troca').reduce((sum, p) => sum + Number(p.amount || 0), 0);
-  return { itemsTotal, tradeCredit, paid, paidCash, grandPaid: tradeCredit + paid, balance: itemsTotal - tradeCredit - paid };
+
+  return {
+    itemsTotal,
+    discount,
+    finalTotal,
+    tradeCredit,
+    paid,
+    paidCash,
+    grandPaid: tradeCredit + paid,
+    balance: finalTotal - tradeCredit - paid
+  };
 }
 
 function renderSaleTotals() {
   const t = saleTotals();
   $('saleTotals').innerHTML = `<div class="total-box">
     <div><span>Total dos produtos</span><strong>${money(t.itemsTotal)}</strong></div>
+    <div><span>Desconto</span><strong>${money(t.discount)}</strong></div>
+    <div><span>Valor final</span><strong>${money(t.finalTotal)}</strong></div>
     <div><span>Entra no caixa</span><strong>${money(t.paidCash)}</strong></div>
     <div><span>Entra no estoque/troca</span><strong>${money(t.tradeCredit)}</strong></div>
     <div><span>Diferença</span><strong>${money(t.balance)}</strong></div>
@@ -1434,6 +1458,7 @@ function saveSale() {
   saleDraft.customerId = $('saleCustomer').value;
   saleDraft.notes = $('saleNotes').value;
   saleDraft.warrantyDays = Number($('saleWarrantyDays')?.value || 0);
+  saleDraft.discount = numberValue($('saleDiscount')?.value || 0);
 
   const snapshot = cloneCurrentState();
   const editingSaleId = editing.sale;
@@ -1466,6 +1491,11 @@ function saveSale() {
     }
 
     const totals = saleTotals();
+
+    if (Number(totals.discount || 0) > Number(totals.itemsTotal || 0)) {
+      throw new Error('O desconto não pode ser maior que o total dos produtos.');
+    }
+
     if (Math.abs(totals.balance) > 0.01) {
       const confirmSave = confirm(`A venda está com diferença de ${money(totals.balance)}. Deseja salvar mesmo assim?`);
       if (!confirmSave) {
@@ -1527,6 +1557,8 @@ function saveSale() {
       };
     });
 
+    profit -= Number(totals.discount || 0);
+
     const payments = saleDraft.payments
       .filter((p) => Number(p.amount || 0) > 0)
       .map((p) => ({ method: p.method, amount: Number(p.amount || 0) }));
@@ -1540,7 +1572,9 @@ function saveSale() {
       items: saleItems,
       tradeIns,
       payments,
-      total: saleItems.reduce((sum, i) => sum + i.subtotal, 0),
+      subtotal: saleItems.reduce((sum, i) => sum + i.subtotal, 0),
+      discount: Number(totals.discount || 0),
+      total: Number(totals.finalTotal || 0),
       tradeCredit: tradeIns.reduce((sum, t) => sum + Number(t.credit || 0), 0) + paymentTradeCredit,
       cashReceived,
       profit,
@@ -1575,6 +1609,7 @@ window.editSale = (id) => {
     customerId: sale.customerId || '',
     notes: sale.notes || '',
     warrantyDays: sale.warrantyDays ?? 90,
+    discount: Number(sale.discount || 0),
     items: (sale.items || []).map((item) => ({ productId: item.productId, qty: item.qty, price: item.price })),
     payments: (sale.payments && sale.payments.length ? sale.payments : [{ method: 'pix', amount: 0 }]).map((payment) => ({ method: payment.method, amount: payment.amount })),
     trades: (sale.tradeIns || []).map((trade) => ({
@@ -1648,6 +1683,7 @@ window.printSale = (id) => {
           <tr><th>Produto</th><th>Qtd.</th><th>Valor un.</th><th>Total</th></tr>
           ${sale.items.map((i) => `<tr><td>${sanitize(i.name)}${i.imei ? `<br><span class="muted">IMEI: ${sanitize(i.imei)}</span>` : ''}</td><td>${i.qty}</td><td>${money(i.price)}</td><td>${money(i.subtotal)}</td></tr>`).join('')}
         </table>
+        ${Number(sale.discount || 0) > 0 ? `<div class="box"><p><b>Subtotal:</b> ${money(sale.subtotal || sale.items.reduce((sum, i) => sum + Number(i.subtotal || 0), 0))}</p><p><b>Desconto:</b> -${money(sale.discount)}</p></div>` : ''}
         <div class="box">
           <h3>Formas de pagamento</h3>
           <ul>${paymentLines}</ul>
@@ -1855,7 +1891,7 @@ function saveExpense(event) {
       value,
       paymentMethod: form.get('paymentMethod'),
       status,
-      paidDate: status === 'pago' ? today() : ''
+      paidDate: status === 'pago' ? addMonths(form.get('firstDueDate'), index) : ''
     };
   });
   state.expenses.push({
@@ -1878,7 +1914,7 @@ window.toggleInstallment = (expenseId, installmentId) => {
   const installment = expense?.installments.find((i) => i.id === installmentId);
   if (!installment) return;
   installment.status = installment.status === 'pago' ? 'pendente' : 'pago';
-  installment.paidDate = installment.status === 'pago' ? today() : '';
+  installment.paidDate = installment.status === 'pago' ? installment.dueDate : '';
   saveState();
   renderExpenses();
 };
