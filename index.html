@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#111827" />
+  <title>Controle de Vendas de Celulares</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <noscript>Ative o JavaScript para usar o sistema.</noscript>
+
+  <main id="loginScreen" class="login-screen hidden">
+    <section class="login-card">
+      <div class="brand-mark">📱</div>
+      <h1>Controle de Celulares</h1>
+      <p>Venda, estoque, trocas, despesas e fornecedores em um sistema simples.</p>
+      <p class="footer-note">Acesso restrito da loja.</p>
+      <form id="loginForm" class="stack">
+        <label>Usuário
+          <input id="loginUser" autocomplete="username" placeholder="Usuário" required />
+        </label>
+        <label>Senha
+          <input id="loginPass" type="password" autocomplete="current-password" placeholder="Senha" required />
+        </label>
+        <button class="primary" type="submit">Entrar</button>
+      </form>
+    </section>
+  </main>
+
+  <div id="app" class="app hidden">
+    <aside class="sidebar">
+      <div class="side-title">
+        <div class="brand-mark small">📱</div>
+        <div>
+          <strong>Controle</strong>
+          <span>Loja de Celulares</span>
+        </div>
+      </div>
+      <nav id="nav"></nav>
+      <button id="logoutBtn" class="ghost full">Sair</button>
+    </aside>
+
+    <section class="content">
+      <header class="topbar">
+        <button id="menuBtn" class="ghost menu-btn">☰</button>
+        <div>
+          <h2 id="pageTitle">Dashboard</h2>
+          <p id="pageSubtitle">Resumo geral da loja</p>
+        </div>
+        <button id="quickBackupBtn" class="secondary">Backup</button>
+      </header>
+
+      <div id="alert" class="alert hidden"></div>
+      <section id="view"></section>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js"></script>
+</body>
+</html>
